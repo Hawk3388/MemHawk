@@ -159,18 +159,18 @@ class MemHawk:
 
         self.history = self.load_history(os.path.join(self.history_path, self.history_file_path))
 
-        while True:
-            prompt = input(">>> ").strip()
-            if not prompt:
-                continue
+        try:
+            while True:
+                prompt = input(">>> ").strip()
+                if not prompt:
+                    continue
 
-            if prompt.lower() in {"exit", "quit"}:
-                print("Bye.")
-                break
+                if prompt.lower() in {"exit", "quit"}:
+                    print("Bye.")
+                    break
 
-            start_time = time.time()
+                start_time = time.time()
 
-            try:
                 self.history = self.archive_oldest_pair_if_needed(self.history, collection)
                 retrieved_docs = self.retrieve_context(prompt, self.history, collection)
                 messages = self.build_chat_messages(prompt, self.history, retrieved_docs)
@@ -178,7 +178,7 @@ class MemHawk:
                 answer = ollama.chat(
                     model=self.chat_model,
                     messages=messages,
-                    think=False, 
+                    think=False,
                     stream=True,
                     options={"num_ctx": self.context}
                 )
@@ -192,13 +192,12 @@ class MemHawk:
                 self.history.append({"role": "user", "content": prompt})
                 self.history.append({"role": "assistant", "content": answer_text})
                 print(f"\nTime taken: {time.time() - start_time:.2f} seconds")
-            except KeyboardInterrupt:
-                print("\nStopped.")
-                break
-            except Exception as exc:
-                print(f"Error: {exc}")
-            finally:
-                self.save_history(self.history_file_path, self.history)
+        except KeyboardInterrupt:
+            print("\nStopped.")
+        except Exception as exc:
+            print(f"Error: {exc}")
+        finally:
+            self.save_history(os.path.join(self.history_path, self.history_file_path), self.history)
 
 
 if __name__ == "__main__":
