@@ -1,12 +1,12 @@
 # ToDo: 
-# * Add import history method
-# * save short term memory
 # * add more customization (support more api's, more options)
 
 
 import time
 from datetime import datetime
 import uuid
+import os
+import json
 
 import chromadb
 import ollama
@@ -16,6 +16,8 @@ class MemHawk:
     def __init__(self):
         self.embed_model = "nomic-embed-text-v2-moe"
         self.chat_model = "qwen3.5"
+        self.history_path = "history"
+        self.history_file_path = "history.json"
         self.db_path = "vector_db"
         self.collection_name = "docs"
         self.max_live_user_turns = 4
@@ -23,7 +25,16 @@ class MemHawk:
         self.retrieval_per_query_k = 5
         self.max_retrieval_distance = 1.2
         self.context = 4096
-        self.history = []
+
+    def load_history(self, history_path):
+        if not os.path.exists(history_path):
+            return []
+        with open(history_path, "r") as f:
+            return json.load(f)
+
+    def save_history(self, history_path, history):
+        with open(history_path, "w") as f:
+            json.dump(history, f)
 
     def count_user_turns(self, messages):
         return sum(1 for msg in messages if msg.get("role") == "user")
@@ -143,8 +154,10 @@ class MemHawk:
         return messages
 
     def run(self):
-        client_db = chromadb.PersistentClient(path=self.db_path)
+        client_db = chromadb.PersistentClient(path=os.path.join(self.history_path, self.db_path))
         collection = client_db.get_or_create_collection(name=self.collection_name)
+
+        self.history = self.load_history(os.path.join(self.history_path, self.history_file_path))
 
         while True:
             prompt = input(">>> ").strip()
@@ -184,6 +197,8 @@ class MemHawk:
                 break
             except Exception as exc:
                 print(f"Error: {exc}")
+            finally:
+                self.save_history(self.history_file_path, self.history)
 
 
 if __name__ == "__main__":
