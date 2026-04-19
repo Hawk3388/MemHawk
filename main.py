@@ -1,4 +1,11 @@
+# ToDo: 
+# * Add import history method
+# * save short term memory
+# * add more customization (support more api's, more options)
+
+
 import time
+from datetime import datetime
 import uuid
 
 import chromadb
@@ -9,15 +16,13 @@ class MemHawk:
     def __init__(self):
         self.embed_model = "nomic-embed-text-v2-moe"
         self.chat_model = "qwen3.5"
-        self.db_path = "vector_db2"
-        self.collection_name = "docs_v2"
-        self.archive_trigger_user_turns = 6
+        self.db_path = "vector_db"
+        self.collection_name = "docs"
         self.max_live_user_turns = 4
-        self.max_recent_turns_in_prompt = 4
         self.top_k_retrieval = 3
-        self.retrieval_context_user_turns = 2
-        self.retrieval_per_query_k = 4
+        self.retrieval_per_query_k = 5
         self.max_retrieval_distance = 1.2
+        self.context = 4096
         self.history = []
 
     def count_user_turns(self, messages):
@@ -55,10 +60,9 @@ class MemHawk:
         return "\n".join(lines)
 
     def archive_oldest_pair_if_needed(self, history, collection):
-        if self.count_user_turns(history) < self.archive_trigger_user_turns:
-            return history
+        user_turns = self.count_user_turns(history)
 
-        while self.count_user_turns(history) > self.max_live_user_turns:
+        while user_turns > self.max_live_user_turns:
             pair, history = self.extract_oldest_turn_pair(history)
             if not pair:
                 break
@@ -71,52 +75,10 @@ class MemHawk:
                 ids=[str(uuid.uuid4())],
                 embeddings=[vector],
                 documents=[doc_text],
-                metadatas=[{"source": "chat_history"}],
+                metadatas=[{"source": "chat_history", "timestamp": datetime.now().isoformat(timespec="seconds")}],
             )
 
         return history
-
-    def format_messages_for_retrieval(self, messages):
-        if not messages:
-            return ""
-
-        lines = []
-        for msg in messages:
-            role = msg.get("role", "unknown").capitalize()
-            content = msg.get("content", "")
-            lines.append(f"{role}: {content}")
-        return "\n".join(lines)
-
-    def recent_messages(self, history, max_user_turns=None):
-        if max_user_turns is None:
-            max_user_turns = self.max_recent_turns_in_prompt
-
-        recent = []
-        user_turns_seen = 0
-        for msg in reversed(history):
-            recent.append(msg)
-            if msg.get("role") == "user":
-                user_turns_seen += 1
-                if user_turns_seen >= max_user_turns:
-                    break
-        return list(reversed(recent))
-
-    def build_retrieval_queries(self, prompt, history):
-        recent = self.recent_messages(
-            history,
-            max_user_turns=self.retrieval_context_user_turns,
-        )
-        recent_context = self.format_messages_for_retrieval(recent)
-
-        queries = [prompt]
-        if recent_context:
-            queries.append(
-                "Aktuelle Frage:\n"
-                f"{prompt}\n\n"
-                "Letzter relevanter Dialogkontext:\n"
-                f"{recent_context}"
-            )
-        return queries
 
     def retrieve_context(self, prompt, history, collection, top_k=None):
         if top_k is None:
@@ -125,30 +87,28 @@ class MemHawk:
         if collection.count() == 0:
             return []
 
-        queries = self.build_retrieval_queries(prompt, history)
-        embed_result = ollama.embed(model=self.embed_model, input=queries)
-        query_vectors = embed_result.get("embeddings", [])
+        embed_result = ollama.embed(model=self.embed_model, input=prompt)
+        query_vector = embed_result["embeddings"][0]
 
-        if not query_vectors:
+        if not query_vector:
             return []
 
         best_distance_by_doc = {}
-        for vector in query_vectors:
-            result = collection.query(
-                query_embeddings=[vector],
-                n_results=self.retrieval_per_query_k,
-                include=["documents", "distances"],
-            )
 
-            docs = result.get("documents", [[]])[0]
-            distances = result.get("distances", [[]])[0]
+        result = collection.query(
+            query_embeddings=[query_vector],
+            n_results=self.retrieval_per_query_k,
+            include=["documents", "distances"],
+        )
 
-            for doc, distance in zip(docs, distances):
-                if not doc:
-                    continue
-                prev = best_distance_by_doc.get(doc)
-                if prev is None or distance < prev:
-                    best_distance_by_doc[doc] = distance
+        docs = result.get("documents", [[]])[0]
+        distances = result.get("distances", [[]])[0]
+
+        for doc, distance in zip(docs, distances):
+            if not doc:
+                continue
+            
+            best_distance_by_doc[doc] = distance
 
         if not best_distance_by_doc:
             return []
@@ -160,7 +120,7 @@ class MemHawk:
             if filtered:
                 return filtered[:top_k]
 
-        return [doc for doc, _ in ranked[:top_k]]
+        return []
 
     def build_chat_messages(self, prompt, history, retrieved_docs):
         messages = []
@@ -178,7 +138,7 @@ class MemHawk:
                 }
             )
 
-        messages.extend(self.recent_messages(history))
+        messages.extend(history)
         messages.append({"role": "user", "content": prompt})
         return messages
 
@@ -202,14 +162,23 @@ class MemHawk:
                 retrieved_docs = self.retrieve_context(prompt, self.history, collection)
                 messages = self.build_chat_messages(prompt, self.history, retrieved_docs)
 
-                answer = ollama.chat(model=self.chat_model, messages=messages, think=False)
-                answer_text = answer.message.content
+                answer = ollama.chat(
+                    model=self.chat_model,
+                    messages=messages,
+                    think=False, 
+                    stream=True,
+                    options={"num_ctx": self.context}
+                )
 
-                print(answer_text)
+                answer_text = ""
+                for chunk in answer:
+                    answer_text += chunk.message.content
+
+                    print(chunk.message.content, end="", flush=True)
 
                 self.history.append({"role": "user", "content": prompt})
                 self.history.append({"role": "assistant", "content": answer_text})
-                print(f"Time taken: {time.time() - start_time:.2f} seconds")
+                print(f"\nTime taken: {time.time() - start_time:.2f} seconds")
             except KeyboardInterrupt:
                 print("\nStopped.")
                 break
