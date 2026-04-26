@@ -25,6 +25,8 @@ class MemHawk:
         self.retrieval_per_query_k = 5
         self.max_retrieval_distance = 1.2
         self.context = 4096
+        self.client_db = chromadb.PersistentClient(path=os.path.join(self.history_path, self.db_path))
+        self.collection = self.client_db.get_or_create_collection(name=self.collection_name)
 
     def load_history(self, history_path):
         if not os.path.exists(history_path):
@@ -71,6 +73,9 @@ class MemHawk:
         return "\n".join(lines)
 
     def archive_oldest_pair_if_needed(self, history, collection):
+        if not collection:
+            collection = self.collection
+
         user_turns = self.count_user_turns(history)
 
         while user_turns > self.max_live_user_turns:
@@ -92,6 +97,9 @@ class MemHawk:
         return history
 
     def retrieve_context(self, prompt, history, collection, top_k=None):
+        if not collection:
+            collection = self.collection
+
         if top_k is None:
             top_k = self.top_k_retrieval
 
@@ -153,10 +161,13 @@ class MemHawk:
         messages.append({"role": "user", "content": prompt})
         return messages
 
-    def run(self):
-        client_db = chromadb.PersistentClient(path=os.path.join(self.history_path, self.db_path))
-        collection = client_db.get_or_create_collection(name=self.collection_name)
+    def simple_run(self, prompt, history):
+        self.history = self.archive_oldest_pair_if_needed(self.history)
+        retrieved_docs = self.retrieve_context(prompt, self.history)
+        messages = self.build_chat_messages(prompt, self.history, retrieved_docs)
+        return messages
 
+    def run(self):
         self.history = self.load_history(os.path.join(self.history_path, self.history_file_path))
 
         try:
@@ -171,8 +182,8 @@ class MemHawk:
 
                 start_time = time.time()
 
-                self.history = self.archive_oldest_pair_if_needed(self.history, collection)
-                retrieved_docs = self.retrieve_context(prompt, self.history, collection)
+                self.history = self.archive_oldest_pair_if_needed(self.history, self.collection)
+                retrieved_docs = self.retrieve_context(prompt, self.history, self.collection)
                 messages = self.build_chat_messages(prompt, self.history, retrieved_docs)
 
                 answer = ollama.chat(
