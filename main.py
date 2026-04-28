@@ -13,19 +13,18 @@ import ollama
 
 
 class MemHawk:
-    def __init__(self):
-        self.embed_model = "nomic-embed-text-v2-moe"
-        self.chat_model = "qwen3.5"
-        self.history_path = "history"
-        self.history_file_path = "history.json"
-        self.db_path = "vector_db"
-        self.collection_name = "docs"
-        self.max_live_user_turns = 4
-        self.top_k_retrieval = 3
-        self.retrieval_per_query_k = 5
-        self.max_retrieval_distance = 1.2
-        self.context = 4096
-        self.client_db = chromadb.PersistentClient(path=os.path.join(self.history_path, self.db_path))
+    def __init__(self, embed_model="nomic-embed-text-v2-moe", history_folder="history", history_file="history.json", db_path="vector_db", collection_name="docs", max_live_user_turns=4, top_k_retrieval=3, retrieval_per_query_k=5, max_retrieval_distance=1.2, context=4096):
+        self.embed_model = embed_model
+        self.history_folder = history_folder
+        self.history_file = history_file
+        self.db_path = db_path
+        self.collection_name = collection_name
+        self.max_live_user_turns = max_live_user_turns
+        self.top_k_retrieval = top_k_retrieval
+        self.retrieval_per_query_k = retrieval_per_query_k
+        self.max_retrieval_distance = max_retrieval_distance
+        self.context = context
+        self.client_db = chromadb.PersistentClient(path=os.path.join(self.history_folder, self.db_path))
         self.collection = self.client_db.get_or_create_collection(name=self.collection_name)
 
     def load_history(self, history_path):
@@ -162,13 +161,13 @@ class MemHawk:
         return messages
 
     def simple_run(self, prompt, history):
-        self.history = self.archive_oldest_pair_if_needed(self.history)
-        retrieved_docs = self.retrieve_context(prompt, self.history)
-        messages = self.build_chat_messages(prompt, self.history, retrieved_docs)
+        history = self.archive_oldest_pair_if_needed(history)
+        retrieved_docs = self.retrieve_context(prompt, history)
+        messages = self.build_chat_messages(prompt, history, retrieved_docs)
         return messages
 
-    def run(self):
-        self.history = self.load_history(os.path.join(self.history_path, self.history_file_path))
+    def run(self, model):
+        history = self.load_history(os.path.join(self.history_folder, self.history_file))
 
         try:
             while True:
@@ -182,12 +181,12 @@ class MemHawk:
 
                 start_time = time.time()
 
-                self.history = self.archive_oldest_pair_if_needed(self.history, self.collection)
-                retrieved_docs = self.retrieve_context(prompt, self.history, self.collection)
-                messages = self.build_chat_messages(prompt, self.history, retrieved_docs)
+                history = self.archive_oldest_pair_if_needed(history, self.collection)
+                retrieved_docs = self.retrieve_context(prompt, history, self.collection)
+                messages = self.build_chat_messages(prompt, history, retrieved_docs)
 
                 answer = ollama.chat(
-                    model=self.chat_model,
+                    model=model,
                     messages=messages,
                     think=False,
                     stream=True,
@@ -200,15 +199,15 @@ class MemHawk:
 
                     print(chunk.message.content, end="", flush=True)
 
-                self.history.append({"role": "user", "content": prompt})
-                self.history.append({"role": "assistant", "content": answer_text})
+                history.append({"role": "user", "content": prompt})
+                history.append({"role": "assistant", "content": answer_text})
                 print(f"\nTime taken: {time.time() - start_time:.2f} seconds")
         except KeyboardInterrupt:
             print("\nStopped.")
         except Exception as exc:
             print(f"Error: {exc}")
         finally:
-            self.save_history(os.path.join(self.history_path, self.history_file_path), self.history)
+            self.save_history(os.path.join(self.history_folder, self.history_file), history)
 
 
 if __name__ == "__main__":
