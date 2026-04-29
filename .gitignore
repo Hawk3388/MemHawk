@@ -1,3 +1,4 @@
 test*
 vector_db*/
 history*/
+__pycache__/

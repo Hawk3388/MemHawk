@@ -1,5 +1,6 @@
 # ToDo: 
 # * add more customization (support more api's, more options)
+# * Support for retrieval with history context
 
 
 import time
@@ -27,18 +28,25 @@ class MemHawk:
         self.client_db = chromadb.PersistentClient(path=os.path.join(self.history_folder, self.db_path))
         self.collection = self.client_db.get_or_create_collection(name=self.collection_name)
 
-    def load_history(self, history_path):
+    def load_history(self, history_path=None):
+        if history_path is None:
+            history_path = os.path.join(self.history_folder, self.history_file)
         if not os.path.exists(history_path):
             return []
         with open(history_path, "r") as f:
             return json.load(f)
 
-    def save_history(self, history_path, history):
+    def save_history(self, history, history_path=None):
+        if history_path is None:
+            history_path = os.path.join(self.history_folder, self.history_file)
         with open(history_path, "w") as f:
             json.dump(history, f)
 
     def count_user_turns(self, messages):
         return sum(1 for msg in messages if msg.get("role") == "user")
+    
+    def history_to_embedding_input(self, history):
+        return [f"{msg['role'].capitalize()}: {msg['content']}" for msg in history]
 
     def extract_oldest_turn_pair(self, messages):
         user_idx = next(
@@ -71,8 +79,8 @@ class MemHawk:
             lines.append(f"{role}: {content}")
         return "\n".join(lines)
 
-    def archive_oldest_pair_if_needed(self, history, collection):
-        if not collection:
+    def archive_oldest_pair_if_needed(self, history, collection=None):
+        if collection is None:
             collection = self.collection
 
         user_turns = self.count_user_turns(history)
@@ -95,8 +103,8 @@ class MemHawk:
 
         return history
 
-    def retrieve_context(self, prompt, history, collection, top_k=None):
-        if not collection:
+    def retrieve_context(self, prompt, history=None, collection=None, top_k=None):
+        if collection is None:
             collection = self.collection
 
         if top_k is None:
@@ -105,8 +113,16 @@ class MemHawk:
         if collection.count() == 0:
             return []
 
-        embed_result = ollama.embed(model=self.embed_model, input=prompt)
-        query_vector = embed_result["embeddings"][0]
+        if history is None:
+            embed_result = ollama.embed(model=self.embed_model, input=prompt)
+            query_vector = embed_result["embeddings"][0]
+        else:
+            history.append({"role": "user", "content": prompt})
+            embed_result = ollama.embed(model=self.embed_model, input=self.history_to_embedding_input(history))
+            embeddings = embed_result["embeddings"]
+            embeddings.append(embeddings[0])
+            embeddings.append(embeddings[0])
+            query_vector = [sum(col) / len(col) for col in zip(*embeddings)]
 
         if not query_vector:
             return []
@@ -166,7 +182,7 @@ class MemHawk:
         messages = self.build_chat_messages(prompt, history, retrieved_docs)
         return messages
 
-    def run(self, model):
+    def run(self, model="qwen3.5"):
         history = self.load_history(os.path.join(self.history_folder, self.history_file))
 
         try:
