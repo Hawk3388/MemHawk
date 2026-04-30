@@ -101,6 +101,8 @@ class MemHawk:
                 metadatas=[{"source": "chat_history", "timestamp": datetime.now().isoformat(timespec="seconds")}],
             )
 
+            user_turns = self.count_user_turns(history)
+
         return history
 
     def retrieve_context(self, prompt, history=None, collection=None, top_k=None):
