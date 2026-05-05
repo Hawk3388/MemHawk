@@ -10,11 +10,17 @@ import os
 import json
 
 import chromadb
-import ollama
+from openai import OpenAI
 
 
 class MemHawk:
-    def __init__(self, embed_model="nomic-embed-text-v2-moe", history_folder="history", history_file="history.json", db_path="vector_db", collection_name="docs", max_live_user_turns=4, top_k_retrieval=3, retrieval_per_query_k=5, max_retrieval_distance=1.2, context=4096):
+    def __init__(self, api_url="http://localhost:11434/v1", api_key="test", embed_model="nomic-embed-text-v2-moe", client=None, history_folder="history", history_file="history.json", db_path="vector_db", collection_name="docs", max_live_user_turns=4, top_k_retrieval=3, retrieval_per_query_k=5, max_retrieval_distance=1.2, context=4096):
+        if client is not None:
+            self.api_client = client
+        else:
+            self.api_url = api_url
+            self.api_key = api_key
+            self.api_client = OpenAI(base_url=self.api_url, api_key=self.api_key)
         self.embed_model = embed_model
         self.history_folder = history_folder
         self.history_file = history_file
@@ -91,7 +97,7 @@ class MemHawk:
                 break
 
             doc_text = self.format_pair_for_embedding(pair)
-            embed = ollama.embed(model=self.embed_model, input=doc_text)
+            embed = self.api_client.embeddings.create(model=self.embed_model, input=doc_text)
             vector = embed["embeddings"][0]
 
             collection.add(
@@ -116,11 +122,11 @@ class MemHawk:
             return []
 
         if history is None:
-            embed_result = ollama.embed(model=self.embed_model, input=prompt)
+            embed_result = self.api_client.embeddings.create(model=self.embed_model, input=prompt)
             query_vector = embed_result["embeddings"][0]
         else:
             history.append({"role": "user", "content": prompt})
-            embed_result = ollama.embed(model=self.embed_model, input=self.history_to_embedding_input(history))
+            embed_result = self.api_client.embeddings.create(model=self.embed_model, input=self.history_to_embedding_input(history))
             embeddings = embed_result["embeddings"]
             embeddings.append(embeddings[0])
             embeddings.append(embeddings[0])
@@ -203,7 +209,7 @@ class MemHawk:
                 retrieved_docs = self.retrieve_context(prompt, history, self.collection)
                 messages = self.build_chat_messages(prompt, history, retrieved_docs)
 
-                answer = ollama.chat(
+                answer = self.api_client.chat.completions.create(
                     model=model,
                     messages=messages,
                     think=False,
