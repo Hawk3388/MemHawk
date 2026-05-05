@@ -14,13 +14,9 @@ from openai import OpenAI
 
 
 class MemHawk:
-    def __init__(self, api_url="http://localhost:11434/v1", api_key="test", embed_model="nomic-embed-text-v2-moe", client=None, history_folder="history", history_file="history.json", db_path="vector_db", collection_name="docs", max_live_user_turns=4, top_k_retrieval=3, retrieval_per_query_k=5, max_retrieval_distance=1.2, context=4096):
-        if client is not None:
-            self.api_client = client
-        else:
-            self.api_url = api_url
-            self.api_key = api_key
-            self.api_client = OpenAI(base_url=self.api_url, api_key=self.api_key)
+    def __init__(self, api_url="http://localhost:11434/v1", api_key="test", embed_model="nomic-embed-text-v2-moe", history_folder="history", history_file="history.json", db_path="vector_db", collection_name="docs", max_live_user_turns=4, top_k_retrieval=3, retrieval_per_query_k=5, max_retrieval_distance=1.2, context=4096):
+        self.api_url = api_url
+        self.api_key = api_key
         self.embed_model = embed_model
         self.history_folder = history_folder
         self.history_file = history_file
@@ -31,6 +27,7 @@ class MemHawk:
         self.retrieval_per_query_k = retrieval_per_query_k
         self.max_retrieval_distance = max_retrieval_distance
         self.context = context
+        self.api_client = OpenAI(base_url=self.api_url, api_key=self.api_key)
         self.client_db = chromadb.PersistentClient(path=os.path.join(self.history_folder, self.db_path))
         self.collection = self.client_db.get_or_create_collection(name=self.collection_name)
 
