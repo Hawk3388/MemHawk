@@ -108,6 +108,9 @@ class MemHawk:
 
         return history
 
+    def create_average_embedding(self, embeddings):
+        return [sum(col) / len(col) for col in zip(*embeddings)]
+
     def retrieve_context(self, prompt, history=None, collection=None, top_k=None):
         if collection is None:
             collection = self.collection
@@ -127,7 +130,7 @@ class MemHawk:
             embeddings = embed_result["embeddings"]
             embeddings.append(embeddings[0])
             embeddings.append(embeddings[0])
-            query_vector = [sum(col) / len(col) for col in zip(*embeddings)]
+            query_vector = self.create_average_embedding(embeddings)
 
         if not query_vector:
             return []
