@@ -14,7 +14,7 @@ from openai import OpenAI
 
 
 class MemHawk:
-    def __init__(self, api_url="http://localhost:11434/v1", api_key="test", embed_model="nomic-embed-text-v2-moe", history_folder="history", history_file="history.json", db_path="vector_db", collection_name="docs", max_live_user_turns=4, top_k_retrieval=3, retrieval_per_query_k=5, max_retrieval_distance=1.2, context=4096):
+    def __init__(self, api_url="http://localhost:11434/v1", api_key="test", embed_model="nomic-embed-text-v2-moe", history_folder="history", history_file="history.json", db_path="vector_db", collection_name="docs", max_live_user_turns=4, top_k_retrieval=3, retrieval_per_query_k=5, max_retrieval_distance=1.2):
         self.api_url = api_url
         self.api_key = api_key
         self.embed_model = embed_model
@@ -26,7 +26,6 @@ class MemHawk:
         self.top_k_retrieval = top_k_retrieval
         self.retrieval_per_query_k = retrieval_per_query_k
         self.max_retrieval_distance = max_retrieval_distance
-        self.context = context
         self.api_client = OpenAI(base_url=self.api_url, api_key=self.api_key)
         self.client_db = chromadb.PersistentClient(path=os.path.join(self.history_folder, self.db_path))
         self.collection = self.client_db.get_or_create_collection(name=self.collection_name)
@@ -191,7 +190,9 @@ class MemHawk:
         return messages
 
     def run(self, model="qwen3.5"):
-        history = self.load_history(os.path.join(self.history_folder, self.history_file))
+        import ollama
+
+        history = self.load_history()
 
         try:
             while True:
@@ -209,20 +210,20 @@ class MemHawk:
                 retrieved_docs = self.retrieve_context(prompt, history, self.collection)
                 messages = self.build_chat_messages(prompt, history, retrieved_docs)
 
-                answer = self.api_client.chat.completions.create(
+                answer = ollama.chat(
                     model=model,
                     messages=messages,
-                    think=False,
                     stream=True,
-                    options={"num_ctx": self.context}
+                    think=False,
+                    options={"num_ctx": 4096},
                 )
 
                 answer_text = ""
                 for chunk in answer:
-                    answer_text += chunk.message.content
-
-                    print(chunk.message.content, end="", flush=True)
-
+                    response_chunk = chunk.message.content
+                    answer_text += response_chunk
+                    print(response_chunk, end="", flush=True)
+                
                 history.append({"role": "user", "content": prompt})
                 history.append({"role": "assistant", "content": answer_text})
                 print(f"\nTime taken: {time.time() - start_time:.2f} seconds")
@@ -231,7 +232,7 @@ class MemHawk:
         except Exception as exc:
             print(f"Error: {exc}")
         finally:
-            self.save_history(os.path.join(self.history_folder, self.history_file), history)
+            self.save_history(history)
 
 
 if __name__ == "__main__":
