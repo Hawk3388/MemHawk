@@ -1,6 +1,5 @@
 # ToDo: 
-# * add more customization (support more api's, more options)
-# * Support for retrieval with history context
+# * Better support for retrieval with history context
 
 
 import time
@@ -94,7 +93,7 @@ class MemHawk:
 
             doc_text = self.format_pair_for_embedding(pair)
             embed = self.api_client.embeddings.create(model=self.embed_model, input=doc_text)
-            vector = embed["embeddings"][0]
+            vector = embed.data[0].embedding
 
             collection.add(
                 ids=[str(uuid.uuid4())],
@@ -110,6 +109,19 @@ class MemHawk:
     def create_average_embedding(self, embeddings):
         return [sum(col) / len(col) for col in zip(*embeddings)]
 
+    def create_linear_weighted_embedding(self, embeddings):
+        if not embeddings:
+            return []
+        weights = list(range(1, len(embeddings) + 1))
+        weight_sum = sum(weights)
+        if weight_sum == 0:
+            return []
+        weighted = []
+        for col in zip(*embeddings):
+            weighted_sum = sum(val * w for val, w in zip(col, weights))
+            weighted.append(weighted_sum / weight_sum)
+        return weighted
+
     def retrieve_context(self, prompt, history=None, collection=None, top_k=None):
         if collection is None:
             collection = self.collection
@@ -122,14 +134,12 @@ class MemHawk:
 
         if history is None:
             embed_result = self.api_client.embeddings.create(model=self.embed_model, input=prompt)
-            query_vector = embed_result["embeddings"][0]
+            query_vector = embed_result.data[0].embedding
         else:
             history.append({"role": "user", "content": prompt})
             embed_result = self.api_client.embeddings.create(model=self.embed_model, input=self.history_to_embedding_input(history))
-            embeddings = embed_result["embeddings"]
-            embeddings.append(embeddings[0])
-            embeddings.append(embeddings[0])
-            query_vector = self.create_average_embedding(embeddings)
+            embeddings = [item.embedding for item in embed_result.data]
+            query_vector = self.create_linear_weighted_embedding(embeddings)
 
         if not query_vector:
             return []
