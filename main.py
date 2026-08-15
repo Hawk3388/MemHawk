@@ -13,11 +13,11 @@ from openai import OpenAI
 
 
 class MemHawk:
-    def __init__(self, api_url="http://localhost:11434/v1", api_key="test", embed_model="nomic-embed-text-v2-moe", history_folder="history", history_file="history.json", db_path="vector_db", collection_name="docs", max_live_user_turns=4, top_k_retrieval=3, retrieval_per_query_k=5, max_retrieval_distance=1.2):
+    def __init__(self, api_url="http://localhost:11434/v1", api_key="test", embed_model="nomic-embed-text-v2-moe", history_folder="history", history_file="history.json", db_path="vector_db", collection_name="docs", max_live_user_turns=6, top_k_retrieval=3, retrieval_per_query_k=5, max_retrieval_distance=1.2):
         self.api_url = api_url
         self.api_key = api_key
         self.embed_model = embed_model
-        self.history_folder = history_folder
+        self.history_folder = os.path.abspath(history_folder)
         self.history_file = history_file
         self.db_path = db_path
         self.collection_name = collection_name
@@ -25,23 +25,42 @@ class MemHawk:
         self.top_k_retrieval = top_k_retrieval
         self.retrieval_per_query_k = retrieval_per_query_k
         self.max_retrieval_distance = max_retrieval_distance
+
+        os.makedirs(self.history_folder, exist_ok=True)
+
+        self.history_path = os.path.join(self.history_folder, self.history_file)
+        self.db_dir = os.path.join(self.history_folder, self.db_path)
+        os.makedirs(self.db_dir, exist_ok=True)
+
         self.api_client = OpenAI(base_url=self.api_url, api_key=self.api_key)
-        self.client_db = chromadb.PersistentClient(path=os.path.join(self.history_folder, self.db_path))
+        self.client_db = chromadb.PersistentClient(path=self.db_dir)
         self.collection = self.client_db.get_or_create_collection(name=self.collection_name)
 
     def load_history(self, history_path=None):
         if history_path is None:
-            history_path = os.path.join(self.history_folder, self.history_file)
+            history_path = self.history_path
+
         if not os.path.exists(history_path):
             return []
-        with open(history_path, "r") as f:
-            return json.load(f)
+
+        try:
+            with open(history_path, "r", encoding="utf-8") as f:
+                history = json.load(f)
+            if isinstance(history, list):
+                return history
+        except (json.JSONDecodeError, OSError, TypeError, ValueError):
+            pass
+
+        return []
 
     def save_history(self, history, history_path=None):
         if history_path is None:
-            history_path = os.path.join(self.history_folder, self.history_file)
-        with open(history_path, "w") as f:
-            json.dump(history, f)
+            history_path = self.history_path
+
+        os.makedirs(os.path.dirname(history_path) or ".", exist_ok=True)
+
+        with open(history_path, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
 
     def count_user_turns(self, messages):
         return sum(1 for msg in messages if msg.get("role") == "user")
@@ -106,9 +125,6 @@ class MemHawk:
 
         return history
 
-    def create_average_embedding(self, embeddings):
-        return [sum(col) / len(col) for col in zip(*embeddings)]
-
     def create_linear_weighted_embedding(self, embeddings):
         if not embeddings:
             return []
@@ -136,8 +152,11 @@ class MemHawk:
             embed_result = self.api_client.embeddings.create(model=self.embed_model, input=prompt)
             query_vector = embed_result.data[0].embedding
         else:
-            history.append({"role": "user", "content": prompt})
-            embed_result = self.api_client.embeddings.create(model=self.embed_model, input=self.history_to_embedding_input(history))
+            query_history = list(history) + [{"role": "user", "content": prompt}]
+            embed_result = self.api_client.embeddings.create(
+                model=self.embed_model,
+                input=self.history_to_embedding_input(query_history),
+            )
             embeddings = [item.embedding for item in embed_result.data]
             query_vector = self.create_linear_weighted_embedding(embeddings)
 
@@ -182,8 +201,9 @@ class MemHawk:
                 {
                     "role": "system",
                     "content": (
-                        "Nutze den folgenden frueheren Kontext nur dann, wenn er relevant zur aktuellen "
-                        "Frage ist. Wenn unklar, priorisiere die aktuelle Unterhaltung.\n\n"
+                        "Treat the following information as part of your memory and use it naturally when it helps "
+                        "answer the current question. Do not mention that you are using memory or past context. "
+                        "If it is not relevant, ignore it and focus on the current conversation.\n\n"
                         f"{context_blob}"
                     ),
                 }
@@ -193,13 +213,13 @@ class MemHawk:
         messages.append({"role": "user", "content": prompt})
         return messages
 
-    def simple_run(self, prompt, history):
-        history = self.archive_oldest_pair_if_needed(history)
+    def run(self, prompt, history):
+        history = self.archive_oldest_pair_if_needed(list(history))
         retrieved_docs = self.retrieve_context(prompt, history)
         messages = self.build_chat_messages(prompt, history, retrieved_docs)
         return messages
 
-    def run(self, model="qwen3.5"):
+    def demo(self, model="qwen3.5"):
         import ollama
 
         history = self.load_history()
@@ -216,9 +236,7 @@ class MemHawk:
 
                 start_time = time.time()
 
-                history = self.archive_oldest_pair_if_needed(history, self.collection)
-                retrieved_docs = self.retrieve_context(prompt, history, self.collection)
-                messages = self.build_chat_messages(prompt, history, retrieved_docs)
+                messages = self.run(prompt, history)
 
                 answer = ollama.chat(
                     model=model,
@@ -246,4 +264,4 @@ class MemHawk:
 
 
 if __name__ == "__main__":
-    MemHawk().run()
+    MemHawk().demo()
