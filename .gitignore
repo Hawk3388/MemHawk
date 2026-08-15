@@ -3,3 +3,6 @@ vector_db*/
 history*/
 __pycache__/
 venv/
+build/
+dist/
+*.egg-info

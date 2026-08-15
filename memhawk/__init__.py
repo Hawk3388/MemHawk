@@ -6,7 +6,6 @@ import time
 from datetime import datetime
 import uuid
 import os
-import json
 
 import chromadb
 from openai import OpenAI
@@ -36,31 +35,55 @@ class MemHawk:
         self.client_db = chromadb.PersistentClient(path=self.db_dir)
         self.collection = self.client_db.get_or_create_collection(name=self.collection_name)
 
-    def load_history(self, history_path=None):
-        if history_path is None:
-            history_path = self.history_path
+    # def load_history(self, history_path=None):
+    #     if history_path is None:
+    #         history_path = self.history_path
 
-        if not os.path.exists(history_path):
-            return []
+    #     if not os.path.exists(history_path):
+    #         return []
 
-        try:
-            with open(history_path, "r", encoding="utf-8") as f:
-                history = json.load(f)
-            if isinstance(history, list):
-                return history
-        except (json.JSONDecodeError, OSError, TypeError, ValueError):
-            pass
+    #     try:
+    #         with open(history_path, "r", encoding="utf-8") as f:
+    #             history = json.load(f)
+    #         if isinstance(history, list):
+    #             return history
+    #     except (json.JSONDecodeError, OSError, TypeError, ValueError):
+    #         pass
 
-        return []
+    #     return []
 
-    def save_history(self, history, history_path=None):
-        if history_path is None:
-            history_path = self.history_path
+    # def save_history(self, history, history_path=None):
+    #     if history_path is None:
+    #         history_path = self.history_path
 
-        os.makedirs(os.path.dirname(history_path) or ".", exist_ok=True)
+    #     os.makedirs(os.path.dirname(history_path) or ".", exist_ok=True)
 
-        with open(history_path, "w", encoding="utf-8") as f:
-            json.dump(history, f, ensure_ascii=False, indent=2)
+    #     with open(history_path, "w", encoding="utf-8") as f:
+    #         json.dump(history, f, ensure_ascii=False, indent=2)
+
+    def save_history(self, history, collection=None):
+        if collection is None:
+            collection = self.collection
+
+        user_turns = self.count_user_turns(history)
+
+        while user_turns > 0:
+            pair, history = self.extract_oldest_turn_pair(history)
+            if not pair:
+                break
+
+            doc_text = self.format_pair_for_embedding(pair)
+            embed = self.api_client.embeddings.create(model=self.embed_model, input=doc_text)
+            vector = embed.data[0].embedding
+
+            collection.add(
+                ids=[str(uuid.uuid4())],
+                embeddings=[vector],
+                documents=[doc_text],
+                metadatas=[{"source": "chat_history", "timestamp": datetime.now().isoformat(timespec="seconds")}],
+            )
+
+            user_turns = self.count_user_turns(history)
 
     def count_user_turns(self, messages):
         return sum(1 for msg in messages if msg.get("role") == "user")
@@ -222,7 +245,8 @@ class MemHawk:
     def demo(self, model="qwen3.5"):
         import ollama
 
-        history = self.load_history()
+        # history = self.load_history()
+        history = []
 
         try:
             while True:
