@@ -12,56 +12,36 @@ from openai import OpenAI
 
 
 class MemHawk:
-    def __init__(self, api_url="http://localhost:11434/v1", api_key="test", embed_model="nomic-embed-text-v2-moe", history_folder="history", history_file="history.json", db_path="vector_db", collection_name="docs", max_live_user_turns=6, top_k_retrieval=3, retrieval_per_query_k=5, max_retrieval_distance=1.2):
+    def __init__(
+        self, 
+        api_url="http://localhost:11434/v1", 
+        api_key="test", 
+        embed_model="nomic-embed-text-v2-moe", 
+        db_path="MemHawk_db", 
+        max_live_user_turns=6, 
+        top_k_retrieval=3, 
+        retrieval_per_query_k=5, 
+        max_retrieval_distance=1.2
+    ):
+
         self.api_url = api_url
         self.api_key = api_key
         self.embed_model = embed_model
-        self.history_folder = os.path.abspath(history_folder)
-        self.history_file = history_file
-        self.db_path = db_path
-        self.collection_name = collection_name
+        self.db_path = os.path.abspath(db_path)
         self.max_live_user_turns = max_live_user_turns
         self.top_k_retrieval = top_k_retrieval
         self.retrieval_per_query_k = retrieval_per_query_k
         self.max_retrieval_distance = max_retrieval_distance
 
-        os.makedirs(self.history_folder, exist_ok=True)
-
-        self.history_path = os.path.join(self.history_folder, self.history_file)
-        self.db_dir = os.path.join(self.history_folder, self.db_path)
-        os.makedirs(self.db_dir, exist_ok=True)
+        os.makedirs(self.db_path, exist_ok=True)
 
         self.api_client = OpenAI(base_url=self.api_url, api_key=self.api_key)
-        self.client_db = chromadb.PersistentClient(path=self.db_dir)
-        self.collection = self.client_db.get_or_create_collection(name=self.collection_name)
-
-    # def load_history(self, history_path=None):
-    #     if history_path is None:
-    #         history_path = self.history_path
-
-    #     if not os.path.exists(history_path):
-    #         return []
-
-    #     try:
-    #         with open(history_path, "r", encoding="utf-8") as f:
-    #             history = json.load(f)
-    #         if isinstance(history, list):
-    #             return history
-    #     except (json.JSONDecodeError, OSError, TypeError, ValueError):
-    #         pass
-
-    #     return []
-
-    # def save_history(self, history, history_path=None):
-    #     if history_path is None:
-    #         history_path = self.history_path
-
-    #     os.makedirs(os.path.dirname(history_path) or ".", exist_ok=True)
-
-    #     with open(history_path, "w", encoding="utf-8") as f:
-    #         json.dump(history, f, ensure_ascii=False, indent=2)
+        self.client_db = chromadb.PersistentClient(path=self.db_path)
+        self.collection = self.client_db.get_or_create_collection(name="memory")
 
     def save_history(self, history, collection=None):
+        print("\nSaving history...")
+
         if collection is None:
             collection = self.collection
 
@@ -236,16 +216,32 @@ class MemHawk:
         messages.append({"role": "user", "content": prompt})
         return messages
 
-    def run(self, prompt, history):
-        history = self.archive_oldest_pair_if_needed(list(history))
-        retrieved_docs = self.retrieve_context(prompt, history)
+    def run(self, prompt: str, history: list, collection=None) -> list:
+        """
+        Build the final chat payload for a new user prompt using retrieved memory context.
+
+        This method archives older user/assistant exchanges when needed, retrieves the most
+        relevant stored conversation fragments from the vector database, and combines them
+        with the current conversation history into a message list suitable for an LLM.
+
+        Args:
+            prompt: The current user prompt to answer.
+            history: The active chat history that should be preserved in the current context.
+            collection: Optional custom ChromaDB collection to use instead of the default one.
+
+        Returns:
+            A list of OpenAI-style chat messages ready to pass to the model.
+        """
+        
+        history = self.archive_oldest_pair_if_needed(list(history), collection)
+        retrieved_docs = self.retrieve_context(prompt, history, collection)
         messages = self.build_chat_messages(prompt, history, retrieved_docs)
+
         return messages
 
     def demo(self, model="qwen3.5"):
         import ollama
 
-        # history = self.load_history()
         history = []
 
         try:
