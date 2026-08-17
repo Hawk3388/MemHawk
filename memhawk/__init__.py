@@ -40,30 +40,7 @@ class MemHawk:
         self.collection = self.client_db.get_or_create_collection(name="memory")
 
     def save_history(self, history, collection=None):
-        print("\nSaving history...")
-
-        if collection is None:
-            collection = self.collection
-
-        user_turns = self.count_user_turns(history)
-
-        while user_turns > 0:
-            pair, history = self.extract_oldest_turn_pair(history)
-            if not pair:
-                break
-
-            doc_text = self.format_pair_for_embedding(pair)
-            embed = self.api_client.embeddings.create(model=self.embed_model, input=doc_text)
-            vector = embed.data[0].embedding
-
-            collection.add(
-                ids=[str(uuid.uuid4())],
-                embeddings=[vector],
-                documents=[doc_text],
-                metadatas=[{"source": "chat_history", "timestamp": datetime.now().isoformat(timespec="seconds")}],
-            )
-
-            user_turns = self.count_user_turns(history)
+        self.archive_oldest_pair_if_needed(history, collection, save=True)
 
     def count_user_turns(self, messages):
         return sum(1 for msg in messages if msg.get("role") == "user")
@@ -102,29 +79,32 @@ class MemHawk:
             lines.append(f"{role}: {content}")
         return "\n".join(lines)
 
-    def archive_oldest_pair_if_needed(self, history, collection=None):
+    def archive_oldest_pair_if_needed(self, history, collection=None, save=False):
         if collection is None:
             collection = self.collection
 
         user_turns = self.count_user_turns(history)
 
-        while user_turns > self.max_live_user_turns:
+        doc_texts = []
+
+        while user_turns > (self.max_live_user_turns if not save else 0):
             pair, history = self.extract_oldest_turn_pair(history)
             if not pair:
                 break
 
-            doc_text = self.format_pair_for_embedding(pair)
-            embed = self.api_client.embeddings.create(model=self.embed_model, input=doc_text)
-            vector = embed.data[0].embedding
-
-            collection.add(
-                ids=[str(uuid.uuid4())],
-                embeddings=[vector],
-                documents=[doc_text],
-                metadatas=[{"source": "chat_history", "timestamp": datetime.now().isoformat(timespec="seconds")}],
-            )
+            doc_texts.append(self.format_pair_for_embedding(pair))
 
             user_turns = self.count_user_turns(history)
+
+        if doc_texts:
+            embed = [embedding.embedding for embedding in self.api_client.embeddings.create(model=self.embed_model, input=doc_texts).data]
+
+            collection.add(
+                ids=[str(uuid.uuid4()) for i in range(len(doc_texts))],
+                embeddings=embed,
+                documents=doc_texts,
+                metadatas=[{"timestamp": datetime.now().isoformat(timespec="seconds")} for i in range(len(doc_texts))],
+            )
 
         return history
 
@@ -280,6 +260,7 @@ class MemHawk:
         except Exception as exc:
             print(f"Error: {exc}")
         finally:
+            print("\nSaving history...")
             self.save_history(history)
 
 
