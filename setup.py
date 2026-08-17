@@ -9,7 +9,7 @@ def read_requirements():
         return [line.strip() for line in f if line.strip() and not line.startswith("#")]
 
 setup(
-    name="MemHawk",
+    name="memhawk",
     version="1.0.0",
     author="Arvid Bouziane",
     author_email="arvid.bouziane@icloud.com",

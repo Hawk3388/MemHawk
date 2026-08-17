@@ -7,3 +7,4 @@ build/
 dist/
 *.egg-info
 MemHawk_db/
+.env
