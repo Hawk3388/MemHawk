@@ -1,0 +1,410 @@
+{
+  "name": "memhawk-boundary-retrieval-v2",
+  "description": "Challenging retrieval cases with near-duplicates, superseded facts, conflicting history, multilingual queries, multiple targets, and unanswerable requests.",
+  "memories": [
+    {
+      "id": "database-current",
+      "document": "User: Which database should we use for persistent application data?\nAssistant: On December 3 we finalized PostgreSQL 16 with pgvector as the primary database, replacing the earlier MySQL proposal.",
+      "metadata": {"timestamp": "2026-12-03T10:00:00", "status": "current", "memory_key": "infrastructure.primary_database", "version": 2}
+    },
+    {
+      "id": "database-old",
+      "document": "User: What is the initial database proposal?\nAssistant: On October 1 we proposed MySQL 8 for persistent application data. This proposal was later superseded.",
+      "metadata": {"timestamp": "2026-10-01T10:00:00", "status": "superseded", "memory_key": "infrastructure.primary_database", "version": 1}
+    },
+    {
+      "id": "cache",
+      "document": "User: Which store should handle ephemeral sessions and cached API results?\nAssistant: Use Redis 8 for short-lived sessions and application caching, not for primary persistent data."
+    },
+    {
+      "id": "frontend-main",
+      "document": "User: Which frontend framework should the customer dashboard use?\nAssistant: We chose Vue 3 with TypeScript and the Composition API for the main dashboard."
+    },
+    {
+      "id": "frontend-admin",
+      "document": "User: Which framework powers the internal admin console?\nAssistant: The internal admin console remains on React 19 with TypeScript."
+    },
+    {
+      "id": "allergy-food",
+      "document": "User: Please remember my food allergy.\nAssistant: You have a severe peanut allergy, so food recommendations must exclude peanuts and possible cross-contamination."
+    },
+    {
+      "id": "allergy-seasonal",
+      "document": "User: What causes my seasonal symptoms?\nAssistant: Your seasonal allergy is triggered by birch pollen during spring."
+    },
+    {
+      "id": "travel-kyoto",
+      "document": "User: Where are we staying during the Kyoto trip?\nAssistant: The Kyoto booking is at Sakura Inn near Gion from October 12 through October 16."
+    },
+    {
+      "id": "travel-tokyo",
+      "document": "User: Where are we staying during the Tokyo trip?\nAssistant: The Tokyo booking is at Sakura Hotel near Ueno from October 17 through October 20."
+    },
+    {
+      "id": "deployment-current",
+      "document": "User: What is the current production deployment window?\nAssistant: Since January, production deployments are scheduled for Sundays at 02:00 UTC, replacing the Saturday slot.",
+      "metadata": {"timestamp": "2027-01-05T09:00:00", "status": "current", "memory_key": "operations.deployment_window", "version": 2}
+    },
+    {
+      "id": "deployment-old",
+      "document": "User: When was the original production deployment window?\nAssistant: Production deployments used to run Saturdays at 23:00 UTC, but this schedule is obsolete.",
+      "metadata": {"timestamp": "2026-08-12T09:00:00", "status": "superseded", "memory_key": "operations.deployment_window", "version": 1}
+    },
+    {
+      "id": "style-python",
+      "document": "User: Which Python formatting rules did we agree on?\nAssistant: Use Black with an 88 character line length and Ruff for Python linting."
+    },
+    {
+      "id": "style-javascript",
+      "document": "User: Which JavaScript formatting rules did we agree on?\nAssistant: Use Prettier with a 100 character print width and ESLint for JavaScript."
+    },
+    {
+      "id": "aster-current",
+      "document": "User: What is the current delivery plan for Project Aster?\nAssistant: Project Aster now has its review on November 7 and final delivery on November 14.",
+      "metadata": {"timestamp": "2026-09-20T11:00:00", "status": "current", "memory_key": "project.aster.delivery_plan", "version": 2}
+    },
+    {
+      "id": "aster-old",
+      "document": "User: What was the original deadline for Project Aster?\nAssistant: Project Aster was originally due October 30, but that deadline was postponed.",
+      "metadata": {"timestamp": "2026-07-02T11:00:00", "status": "superseded", "memory_key": "project.aster.delivery_plan", "version": 1}
+    },
+    {
+      "id": "atlas",
+      "document": "User: What is the delivery plan for Project Atlas?\nAssistant: Project Atlas has its review on November 10 and final delivery on November 14."
+    },
+    {
+      "id": "pet-luna-dog",
+      "document": "User: What did the veterinarian prescribe for my dog Luna?\nAssistant: Luna the dog should receive one allergy tablet every evening with food."
+    },
+    {
+      "id": "pet-luna-cat",
+      "document": "User: What treatment does Maria's cat Luna need?\nAssistant: Maria's cat Luna needs two antibiotic eye drops every morning for seven days."
+    },
+    {
+      "id": "response-current",
+      "document": "User: How should you answer me by default now?\nAssistant: Reply in concise German unless I explicitly request another language or more detail.",
+      "metadata": {"timestamp": "2026-09-01T08:00:00", "status": "current", "memory_key": "preferences.response_style", "version": 2}
+    },
+    {
+      "id": "response-old",
+      "document": "User: What response style did I initially request?\nAssistant: You initially requested detailed answers in English, but later changed this preference.",
+      "metadata": {"timestamp": "2026-01-03T08:00:00", "status": "superseded", "memory_key": "preferences.response_style", "version": 1}
+    },
+    {
+      "id": "backups-current",
+      "document": "User: What is the current backup policy?\nAssistant: Store encrypted daily backups in the S3 archive bucket and retain them for 30 days.",
+      "metadata": {"timestamp": "2026-11-15T12:00:00", "status": "current", "memory_key": "operations.backup_policy", "version": 2}
+    },
+    {
+      "id": "backups-old",
+      "document": "User: What was our previous backup policy?\nAssistant: Backups were stored unencrypted on a local NAS for 90 days. This policy was retired.",
+      "metadata": {"timestamp": "2026-04-15T12:00:00", "status": "superseded", "memory_key": "operations.backup_policy", "version": 1}
+    },
+    {
+      "id": "diet-current",
+      "document": "User: What diet do I currently follow?\nAssistant: You now follow a pescatarian diet and still avoid peanuts because of the allergy.",
+      "metadata": {"timestamp": "2026-08-22T18:00:00", "status": "current", "memory_key": "preferences.diet", "version": 2}
+    },
+    {
+      "id": "diet-old",
+      "document": "User: Which diet did I follow last year?\nAssistant: You previously followed a vegetarian diet before adding fish to your meals.",
+      "metadata": {"timestamp": "2025-06-10T18:00:00", "status": "superseded", "memory_key": "preferences.diet", "version": 1}
+    },
+    {
+      "id": "authentication",
+      "document": "User: Which authentication mechanism should the public API use?\nAssistant: Use OAuth 2.1 authorization code flow with PKCE and rotate refresh tokens."
+    },
+    {
+      "id": "timezone",
+      "document": "User: Which timezone should calendar dates use for me?\nAssistant: Display personal calendar times in Europe/Berlin and include UTC for production operations."
+    }
+  ],
+  "cases": [
+    {
+      "id": "direct-database",
+      "category": "direct",
+      "difficulty": "easy",
+      "query": "Which database did we choose for persistent application data?",
+      "history": [{"role": "user", "content": "We were reviewing the frontend."}],
+      "relevant_memory_ids": ["database-current"],
+      "forbidden_memory_ids": ["database-old", "cache"]
+    },
+    {
+      "id": "direct-food-allergy",
+      "category": "direct",
+      "difficulty": "easy",
+      "query": "Which food allergy must restaurant recommendations account for?",
+      "history": [],
+      "relevant_memory_ids": ["allergy-food"]
+    },
+    {
+      "id": "direct-kyoto",
+      "category": "direct",
+      "difficulty": "easy",
+      "query": "Which hotel did we book in Kyoto and on which dates?",
+      "history": [],
+      "relevant_memory_ids": ["travel-kyoto"],
+      "forbidden_memory_ids": ["travel-tokyo"]
+    },
+    {
+      "id": "direct-python-style",
+      "category": "direct",
+      "difficulty": "easy",
+      "query": "What Python formatter and line length did we choose?",
+      "history": [],
+      "relevant_memory_ids": ["style-python"],
+      "forbidden_memory_ids": ["style-javascript"]
+    },
+    {
+      "id": "direct-auth",
+      "category": "direct",
+      "difficulty": "easy",
+      "query": "Which authentication flow should the public API use?",
+      "history": [],
+      "relevant_memory_ids": ["authentication"]
+    },
+    {
+      "id": "paraphrase-database",
+      "category": "paraphrase",
+      "difficulty": "medium",
+      "query": "What relational store with vector support became our canonical durable data layer?",
+      "history": [],
+      "relevant_memory_ids": ["database-current"],
+      "forbidden_memory_ids": ["database-old", "cache"]
+    },
+    {
+      "id": "paraphrase-backup",
+      "category": "paraphrase",
+      "difficulty": "medium",
+      "query": "Describe the disaster-recovery copies: destination, protection and retention period.",
+      "history": [],
+      "relevant_memory_ids": ["backups-current"],
+      "forbidden_memory_ids": ["backups-old"]
+    },
+    {
+      "id": "history-database",
+      "category": "history_resolution",
+      "difficulty": "hard",
+      "query": "What did we decide to use?",
+      "history": [
+        {"role": "user", "content": "Let us return to the persistent backend database decision."},
+        {"role": "assistant", "content": "We selected the durable application data store earlier."}
+      ],
+      "relevant_memory_ids": ["database-current"],
+      "forbidden_memory_ids": ["database-old", "cache"]
+    },
+    {
+      "id": "history-deployment",
+      "category": "history_resolution",
+      "difficulty": "hard",
+      "query": "When was that scheduled?",
+      "history": [
+        {"role": "user", "content": "I need to prepare for the regular production deployment."},
+        {"role": "assistant", "content": "We already agreed on a weekly deployment window."}
+      ],
+      "relevant_memory_ids": ["deployment-current"],
+      "forbidden_memory_ids": ["deployment-old"]
+    },
+    {
+      "id": "history-pronoun-pet",
+      "category": "history_resolution",
+      "difficulty": "hard",
+      "query": "What medicine does she need?",
+      "history": [
+        {"role": "user", "content": "I am asking about my dog Luna, not Maria's cat."},
+        {"role": "assistant", "content": "Understood, this is about your dog Luna's treatment."}
+      ],
+      "relevant_memory_ids": ["pet-luna-dog"],
+      "forbidden_memory_ids": ["pet-luna-cat"]
+    },
+    {
+      "id": "latest-database",
+      "category": "temporal_supersession",
+      "difficulty": "hard",
+      "query": "What is our latest database decision, after replacing the initial proposal?",
+      "history": [],
+      "relevant_memory_ids": ["database-current"],
+      "forbidden_memory_ids": ["database-old", "cache"]
+    },
+    {
+      "id": "latest-deployment",
+      "category": "temporal_supersession",
+      "difficulty": "hard",
+      "query": "What is the current deployment schedule, not the obsolete one?",
+      "history": [],
+      "relevant_memory_ids": ["deployment-current"],
+      "forbidden_memory_ids": ["deployment-old"]
+    },
+    {
+      "id": "latest-aster",
+      "category": "temporal_supersession",
+      "difficulty": "hard",
+      "query": "What is Project Aster's updated final deadline?",
+      "history": [],
+      "relevant_memory_ids": ["aster-current"],
+      "forbidden_memory_ids": ["aster-old", "atlas"]
+    },
+    {
+      "id": "latest-response-style",
+      "category": "temporal_supersession",
+      "difficulty": "hard",
+      "query": "How should you respond now, after my preference changed?",
+      "history": [],
+      "relevant_memory_ids": ["response-current"],
+      "forbidden_memory_ids": ["response-old"]
+    },
+    {
+      "id": "latest-backups",
+      "category": "temporal_supersession",
+      "difficulty": "hard",
+      "query": "What is the current backup policy rather than the retired policy?",
+      "history": [],
+      "relevant_memory_ids": ["backups-current"],
+      "forbidden_memory_ids": ["backups-old"]
+    },
+    {
+      "id": "entity-aster-atlas",
+      "category": "entity_disambiguation",
+      "difficulty": "hard",
+      "query": "Give me the review and final dates for Aster, not Atlas.",
+      "history": [],
+      "relevant_memory_ids": ["aster-current"],
+      "forbidden_memory_ids": ["aster-old", "atlas"]
+    },
+    {
+      "id": "entity-luna-dog-cat",
+      "category": "entity_disambiguation",
+      "difficulty": "hard",
+      "query": "What treatment is prescribed for my dog Luna, not Maria's cat with the same name?",
+      "history": [],
+      "relevant_memory_ids": ["pet-luna-dog"],
+      "forbidden_memory_ids": ["pet-luna-cat"]
+    },
+    {
+      "id": "entity-kyoto-tokyo",
+      "category": "entity_disambiguation",
+      "difficulty": "medium",
+      "query": "I need the Sakura accommodation dates for Kyoto, not the Tokyo stay.",
+      "history": [],
+      "relevant_memory_ids": ["travel-kyoto"],
+      "forbidden_memory_ids": ["travel-tokyo"]
+    },
+    {
+      "id": "german-kyoto",
+      "category": "multilingual",
+      "difficulty": "hard",
+      "query": "In welchem Hotel übernachten wir in Kyoto und von wann bis wann?",
+      "history": [],
+      "relevant_memory_ids": ["travel-kyoto"],
+      "forbidden_memory_ids": ["travel-tokyo"]
+    },
+    {
+      "id": "german-deployment",
+      "category": "multilingual",
+      "difficulty": "hard",
+      "query": "Wann ist aktuell das Zeitfenster für das Deployment in Produktion?",
+      "history": [],
+      "relevant_memory_ids": ["deployment-current"],
+      "forbidden_memory_ids": ["deployment-old"]
+    },
+    {
+      "id": "multi-infrastructure",
+      "category": "multi_memory",
+      "difficulty": "hard",
+      "query": "Summarize both our primary database choice and current backup policy.",
+      "history": [],
+      "relevant_memory_ids": ["database-current", "backups-current"],
+      "forbidden_memory_ids": ["database-old", "backups-old", "cache"]
+    },
+    {
+      "id": "multi-preferences",
+      "category": "multi_memory",
+      "difficulty": "hard",
+      "query": "What are my current diet and preferred response style?",
+      "history": [],
+      "relevant_memory_ids": ["diet-current", "response-current"],
+      "forbidden_memory_ids": ["diet-old", "response-old"]
+    },
+    {
+      "id": "conflict-explicit-aster",
+      "category": "history_conflict",
+      "difficulty": "hard",
+      "query": "Ignore the previous topic: what is Project Aster's final deadline?",
+      "history": [
+        {"role": "user", "content": "We have been discussing Project Atlas and its November schedule."},
+        {"role": "assistant", "content": "Atlas has a review and final delivery coming up."}
+      ],
+      "relevant_memory_ids": ["aster-current"],
+      "forbidden_memory_ids": ["aster-old", "atlas"]
+    },
+    {
+      "id": "conflict-explicit-python",
+      "category": "history_conflict",
+      "difficulty": "hard",
+      "query": "Switching topics: which formatter and line length apply to Python?",
+      "history": [
+        {"role": "user", "content": "Use the JavaScript formatting configuration."},
+        {"role": "assistant", "content": "We were discussing Prettier and ESLint for JavaScript."}
+      ],
+      "relevant_memory_ids": ["style-python"],
+      "forbidden_memory_ids": ["style-javascript"]
+    },
+    {
+      "id": "long-noisy-allergy",
+      "category": "long_context",
+      "difficulty": "hard",
+      "query": "For tonight's restaurant, what dangerous food issue must we remember?",
+      "history": [
+        {"role": "user", "content": "First we reviewed Vue, React, OAuth, Redis and PostgreSQL."},
+        {"role": "assistant", "content": "Those architecture decisions cover frontend, authentication, caching and storage."},
+        {"role": "user", "content": "Then we compared Kyoto and Tokyo hotels and both Sakura properties."},
+        {"role": "assistant", "content": "The two travel bookings have different cities and dates."},
+        {"role": "user", "content": "Now I am choosing somewhere safe to eat dinner."},
+        {"role": "assistant", "content": "The restaurant must account for your personal health constraints."}
+      ],
+      "relevant_memory_ids": ["allergy-food"]
+    },
+    {
+      "id": "negative-favorite-color",
+      "category": "negative",
+      "difficulty": "medium",
+      "query": "What is my favorite color?",
+      "history": [],
+      "relevant_memory_ids": [],
+      "expect_no_result": true
+    },
+    {
+      "id": "negative-birthday",
+      "category": "negative",
+      "difficulty": "hard",
+      "query": "On what date is my birthday?",
+      "history": [
+        {"role": "user", "content": "We previously discussed many project deadlines and travel dates."},
+        {"role": "assistant", "content": "There are several dates in long-term memory."}
+      ],
+      "relevant_memory_ids": [],
+      "expect_no_result": true
+    },
+    {
+      "id": "negative-salary",
+      "category": "negative",
+      "difficulty": "medium",
+      "query": "What is my annual salary?",
+      "history": [],
+      "relevant_memory_ids": [],
+      "expect_no_result": true
+    },
+    {
+      "id": "negative-phone",
+      "category": "negative",
+      "difficulty": "hard",
+      "query": "Which phone number should I call?",
+      "history": [
+        {"role": "user", "content": "This is about contacting the Kyoto hotel."},
+        {"role": "assistant", "content": "We know where and when you are staying, but no contact details were stated."}
+      ],
+      "relevant_memory_ids": [],
+      "expect_no_result": true
+    }
+  ]
+}

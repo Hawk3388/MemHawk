@@ -1,4 +1,6 @@
 test*
+!tests/
+!tests/*.py
 vector_db*/
 history*/
 __pycache__/
@@ -7,4 +9,5 @@ build/
 dist/
 *.egg-info
 MemHawk_db/
+benchmark-report*.json
 .env

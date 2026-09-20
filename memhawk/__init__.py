@@ -1,11 +1,8 @@
-# ToDo: 
-# * Better support for retrieval with history context
-
-
-import time
-from datetime import datetime
-import uuid
+import math
 import os
+import time
+import uuid
+from datetime import datetime
 
 import chromadb
 from openai import OpenAI
@@ -21,7 +18,9 @@ class MemHawk:
         max_live_user_turns=6, 
         top_k_retrieval=3, 
         retrieval_per_query_k=5, 
-        max_retrieval_distance=1.2
+        max_retrieval_distance=1.2,
+        current_prompt_weight=0.8,
+        history_decay=0.7,
     ):
 
         self.api_url = api_url
@@ -32,6 +31,12 @@ class MemHawk:
         self.top_k_retrieval = top_k_retrieval
         self.retrieval_per_query_k = retrieval_per_query_k
         self.max_retrieval_distance = max_retrieval_distance
+        if not 0.5 < current_prompt_weight <= 1.0:
+            raise ValueError("current_prompt_weight must be greater than 0.5 and at most 1.0")
+        if not 0.0 < history_decay <= 1.0:
+            raise ValueError("history_decay must be greater than 0.0 and at most 1.0")
+        self.current_prompt_weight = current_prompt_weight
+        self.history_decay = history_decay
 
         os.makedirs(self.db_path, exist_ok=True)
 
@@ -121,6 +126,62 @@ class MemHawk:
             weighted.append(weighted_sum / weight_sum)
         return weighted
 
+    def create_retrieval_embedding(self, prompt_embedding, history_embeddings=None):
+        """Create a prompt-first query vector, with recent history as a small guide.
+
+        The current prompt always receives ``current_prompt_weight`` of the input
+        weight. The remaining weight is distributed over history exponentially, so
+        recent messages influence retrieval more than older ones. Finally, the
+        blended vector is restored to the weighted average magnitude of the source
+        embeddings. This prevents averaging from shortening the query vector and
+        distorting L2-based retrieval distances.
+        """
+        if not prompt_embedding:
+            return []
+
+        history_embeddings = history_embeddings or []
+        if not history_embeddings or self.current_prompt_weight >= 1.0:
+            return list(prompt_embedding)
+
+        dimensions = len(prompt_embedding)
+        if any(len(embedding) != dimensions for embedding in history_embeddings):
+            raise ValueError("All retrieval embeddings must have the same dimensions")
+
+        # Oldest -> newest: newer messages receive progressively more of the
+        # history budget, while the full history remains subordinate to the prompt.
+        raw_history_weights = [
+            self.history_decay ** age
+            for age in reversed(range(len(history_embeddings)))
+        ]
+        history_budget = 1.0 - self.current_prompt_weight
+        raw_weight_sum = sum(raw_history_weights)
+        history_weights = [
+            history_budget * weight / raw_weight_sum
+            for weight in raw_history_weights
+        ]
+
+        combined = [
+            self.current_prompt_weight * value
+            for value in prompt_embedding
+        ]
+        for embedding, weight in zip(history_embeddings, history_weights):
+            for index, value in enumerate(embedding):
+                combined[index] += weight * value
+
+        source_weights = [self.current_prompt_weight, *history_weights]
+        source_embeddings = [prompt_embedding, *history_embeddings]
+        target_magnitude = sum(
+            weight * math.sqrt(sum(value * value for value in embedding))
+            for weight, embedding in zip(source_weights, source_embeddings)
+        )
+        combined_magnitude = math.sqrt(sum(value * value for value in combined))
+
+        if combined_magnitude > 0.0 and target_magnitude > 0.0:
+            scale = target_magnitude / combined_magnitude
+            combined = [value * scale for value in combined]
+
+        return combined
+
     def retrieve_context(self, prompt, history=None, collection=None, top_k=None):
         if collection is None:
             collection = self.collection
@@ -131,17 +192,20 @@ class MemHawk:
         if collection.count() == 0:
             return []
 
-        if history is None:
+        if not history:
             embed_result = self.api_client.embeddings.create(model=self.embed_model, input=prompt)
             query_vector = embed_result.data[0].embedding
         else:
-            query_history = list(history) + [{"role": "user", "content": prompt}]
+            history_inputs = self.history_to_embedding_input(history)
             embed_result = self.api_client.embeddings.create(
                 model=self.embed_model,
-                input=self.history_to_embedding_input(query_history),
+                input=history_inputs + [f"User: {prompt}"],
             )
             embeddings = [item.embedding for item in embed_result.data]
-            query_vector = self.create_linear_weighted_embedding(embeddings)
+            query_vector = self.create_retrieval_embedding(
+                prompt_embedding=embeddings[-1],
+                history_embeddings=embeddings[:-1],
+            )
 
         if not query_vector:
             return []
