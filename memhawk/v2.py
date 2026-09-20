@@ -495,9 +495,18 @@ class MemHawkV2:
             or self.current_prompt_weight >= 1.0
             or self.max_history_embedding_messages == 0
         ):
+            embedding_input = (
+                f"User: {prompt}"
+                if history
+                and (
+                    self.current_prompt_weight >= 1.0
+                    or self.max_history_embedding_messages == 0
+                )
+                else prompt
+            )
             response = self.api_client.embeddings.create(
                 model=self.embed_model,
-                input=prompt,
+                input=embedding_input,
             )
             return response.data[0].embedding
 

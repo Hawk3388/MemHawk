@@ -175,6 +175,16 @@ class MemHawkV2Tests(unittest.TestCase):
             ],
         )
 
+    def test_prompt_only_skips_history_embeddings(self):
+        engine, embeddings, _ = self.make_engine(current_prompt_weight=1.0)
+
+        engine._create_query_vector(
+            "database question",
+            [{"role": "user", "content": "unrelated history"}],
+        )
+
+        self.assertEqual(embeddings.last_input, "User: database question")
+
 
 if __name__ == "__main__":
     unittest.main()
