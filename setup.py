@@ -10,7 +10,7 @@ def read_requirements():
 
 setup(
     name="memhawk",
-    version="1.0.0",
+    version="1.1.0",
     author="Arvid Bouziane",
     author_email="arvid.bouziane@icloud.com",
     packages=find_packages(),
