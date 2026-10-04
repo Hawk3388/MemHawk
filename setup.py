@@ -1,19 +1,20 @@
 from setuptools import setup, find_packages
 
 def read_readme():
-    with open("README.md", "r") as fh:
+    with open("README.md", "r", encoding="utf-8") as fh:
         return fh.read()
 
 def read_requirements():
-    with open("requirements.txt", "r") as f:
+    with open("requirements.txt", "r", encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip() and not line.startswith("#")]
 
 setup(
     name="memhawk",
-    version="1.1.0",
+    version="1.1.1",
     author="Arvid Bouziane",
     author_email="arvid.bouziane@icloud.com",
     packages=find_packages(),
+    package_data={"benchmarks": ["dataset.json"]},
     description="MemHawk is a universal program that stores past chat turns in a vector database and retrieves only the most relevant memories, so the AI receives a much smaller context window without losing important information.",
     long_description=read_readme(),
     long_description_content_type="text/markdown",

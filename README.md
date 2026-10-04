@@ -236,6 +236,34 @@ Without a stable `memory_key`, exact duplicates are still removed, but semantic
 contradictions cannot be identified reliably. This is intentional: silently
 guessing keys from arbitrary conversation text could invalidate unrelated facts.
 
+## Search context directly
+
+Both `MemHawk` and `MemHawkV2` support searching stored memories with a query,
+without supplying or archiving conversation history:
+
+```python
+from memhawk import MemHawk
+from memhawk.v2 import MemHawkV2
+
+memory = MemHawk()  # Or MemHawkV2() for version-aware retrieval.
+documents = memory.search_context("Which database did we choose?", top_k=3)
+
+for document in documents:
+    print(document)
+```
+
+`search_context()` embeds only the query and returns a `list[str]` of matching
+stored documents. It does not generate an answer or change stored memories.
+Both engines apply their configured distance threshold; V2 also applies its
+namespace and version-validity filters. Their default collections remain
+separate (`memory` and `memory_v2`).
+
+Omit `top_k` to use `top_k_retrieval`, or pass `collection=custom_collection`
+to search a custom collection. Results are limited by `top_k` and the configured
+`retrieval_per_query_k` candidate pool. An empty collection or no qualifying
+matches returns `[]`; a blank query raises `ValueError`. Setting `top_k` to zero
+or a negative value returns `[]` without requesting an embedding.
+
 ## Message format
 
 History uses the standard OpenAI chat format:
@@ -322,6 +350,12 @@ OpenAI-style message list for the next model call.
 ### `retrieve_context(prompt, history=None, collection=None, top_k=None)`
 
 Returns the relevant stored conversation documents after distance filtering.
+
+### `search_context(query, top_k=None, collection=None)`
+
+Searches stored documents using only the query and returns their texts. Available
+in both engines; uses the same retrieval settings and filters as
+`retrieve_context()` without conversation history.
 
 ### `archive_oldest_pair_if_needed(history, collection=None, save=False)`
 

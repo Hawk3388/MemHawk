@@ -671,6 +671,25 @@ class MemHawkV2:
             )
         ]
 
+    def search_context(
+        self,
+        query: str,
+        top_k: int | None = None,
+        collection: Any | None = None,
+    ) -> list[str]:
+        """Search stored memories using only the query, without archiving history.
+
+        Returns matching document texts, or an empty list if nothing qualifies.
+        ``top_k`` defaults to ``top_k_retrieval``; the configured candidate count,
+        distance threshold, namespace, and validity filters still apply.
+        A blank query raises ``ValueError``.
+        """
+        if not query.strip():
+            raise ValueError("query must not be empty")
+        if top_k is not None and top_k <= 0:
+            return []
+        return self.retrieve_context(query, collection=collection, top_k=top_k)
+
     def build_chat_messages(
         self,
         prompt: str,

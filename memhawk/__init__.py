@@ -232,12 +232,24 @@ class MemHawk:
 
         ranked = sorted(best_distance_by_doc.items(), key=lambda item: item[1])
 
-        if self.max_retrieval_distance is not None:
-            filtered = [doc for doc, dist in ranked if dist <= self.max_retrieval_distance]
-            if filtered:
-                return filtered[:top_k]
+        filtered = [
+            doc for doc, dist in ranked
+            if self.max_retrieval_distance is None or dist <= self.max_retrieval_distance
+        ]
+        return filtered[:top_k]
 
-        return []
+    def search_context(self, query: str, top_k: int | None = None, collection=None) -> list[str]:
+        """Search stored memories using only the query, without archiving history.
+
+        Returns matching document texts, or an empty list if nothing qualifies.
+        ``top_k`` defaults to ``top_k_retrieval``; the configured candidate count
+        and distance threshold still apply. A blank query raises ``ValueError``.
+        """
+        if not query.strip():
+            raise ValueError("query must not be empty")
+        if top_k is not None and top_k <= 0:
+            return []
+        return self.retrieve_context(query, collection=collection, top_k=top_k)
 
     def build_chat_messages(self, prompt, history, retrieved_docs):
         messages = []
