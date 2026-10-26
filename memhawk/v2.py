@@ -63,7 +63,7 @@ class MemHawkV2:
         self,
         api_url: str = "http://localhost:11434/v1",
         api_key: str = "test",
-        embed_model: str = "nomic-embed-text-v2-moe",
+        embed_model: str = "embeddinggemma-2",
         db_path: str = "MemHawk_db",
         max_live_user_turns: int = 6,
         top_k_retrieval: int = 3,

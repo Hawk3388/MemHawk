@@ -51,7 +51,7 @@ which avoids artificially worsening L2 distances through vector averaging.
 - An embedding model available through that endpoint
 
 The default configuration expects an API at `http://localhost:11434/v1` and an
-embedding model named `nomic-embed-text-v2-moe`.
+embedding model named `embeddinggemma-2`.
 
 ## Installation
 
@@ -99,7 +99,7 @@ api_key = "test"
 memory = MemHawk(
     api_url=api_url,
     api_key=api_key,
-    embed_model="nomic-embed-text-v2-moe",
+    embed_model="embeddinggemma-2",
     db_path="MemHawk_db",
 )
 chat_client = OpenAI(base_url=api_url, api_key=api_key)
@@ -285,7 +285,7 @@ same exchange.
 memory = MemHawk(
     api_url="http://localhost:11434/v1",
     api_key="test",
-    embed_model="nomic-embed-text-v2-moe",
+    embed_model="embeddinggemma-2",
     db_path="MemHawk_db",
     max_live_user_turns=6,
     top_k_retrieval=3,
@@ -300,7 +300,7 @@ memory = MemHawk(
 | --- | --- | --- |
 | `api_url` | `http://localhost:11434/v1` | Base URL of the OpenAI-compatible embeddings API. |
 | `api_key` | `test` | API key passed to the client. Local servers may accept a placeholder. |
-| `embed_model` | `nomic-embed-text-v2-moe` | Model used for stored documents and retrieval queries. |
+| `embed_model` | `embeddinggemma-2` | Model used for stored documents and retrieval queries. |
 | `db_path` | `MemHawk_db` | Directory containing the persistent ChromaDB database. |
 | `max_live_user_turns` | `6` | Number of user turns retained in the live conversation before older exchanges are archived. |
 | `top_k_retrieval` | `3` | Maximum number of stored memories injected into the final messages. |
@@ -456,7 +456,7 @@ Specify another OpenAI-compatible endpoint or embedding model when needed:
 ```bash
 python benchmarks/run_benchmark.py \
   --api-url http://localhost:11434/v1 \
-  --embed-model nomic-embed-text-v2-moe
+  --embed-model embeddinggemma-2
 ```
 
 The benchmark uses the original engine by default. Test the version-aware engine

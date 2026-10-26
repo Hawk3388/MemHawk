@@ -13,7 +13,7 @@ class MemHawk:
         self, 
         api_url="http://localhost:11434/v1", 
         api_key="test", 
-        embed_model="nomic-embed-text-v2-moe", 
+        embed_model="embeddinggemma-2", 
         db_path="MemHawk_db", 
         max_live_user_turns=6, 
         top_k_retrieval=3, 

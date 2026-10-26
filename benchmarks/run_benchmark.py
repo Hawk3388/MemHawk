@@ -545,7 +545,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--api-key", default=os.getenv("MEMHAWK_API_KEY", "test"))
     parser.add_argument(
         "--embed-model",
-        default=os.getenv("MEMHAWK_EMBED_MODEL", "nomic-embed-text-v2-moe"),
+        default=os.getenv("MEMHAWK_EMBED_MODEL", "embeddinggemma-2"),
     )
     parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument("--candidates", type=int, default=5)
